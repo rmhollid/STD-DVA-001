@@ -1,0 +1,13 @@
+{
+  "baseline_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "format": "cleanroom-mutator-instruction/v1",
+  "operations": [
+    {
+      "content_utf8": "Replacement text\n",
+      "expected_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "mode": 420,
+      "op": "replace",
+      "path": "README.txt"
+    }
+  ]
+}
