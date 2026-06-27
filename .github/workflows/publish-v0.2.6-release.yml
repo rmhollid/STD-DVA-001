@@ -1,0 +1,53 @@
+name: Publish v0.2.6 release assets
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-v0.2.6-release.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify archive checksum
+        run: sha256sum -c STD-DVA-001_v0.2.6.tar.gz.sha256
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          notes='Official packaged release for STD-DVA-001 v0.2.6. The repository source tree remains reviewable directly through Git. The tarball is provided for deterministic distribution and offline transfer; verify it with the attached SHA-256 sidecar.'
+          if gh release view v0.2.6 >/dev/null 2>&1; then
+            gh release upload v0.2.6 STD-DVA-001_v0.2.6.tar.gz STD-DVA-001_v0.2.6.tar.gz.sha256 --clobber
+            gh release edit v0.2.6 --title 'STD-DVA-001 v0.2.6' --notes "$notes"
+          else
+            gh release create v0.2.6 STD-DVA-001_v0.2.6.tar.gz STD-DVA-001_v0.2.6.tar.gz.sha256 --target "$GITHUB_SHA" --title 'STD-DVA-001 v0.2.6' --notes "$notes"
+          fi
+
+      - name: Verify release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view v0.2.6 --json assets,url > release.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('release.json').read_text())
+          expected = {'STD-DVA-001_v0.2.6.tar.gz', 'STD-DVA-001_v0.2.6.tar.gz.sha256'}
+          assets = {item['name'] for item in data['assets']}
+          missing = expected - assets
+          if missing:
+              raise SystemExit(f'missing release assets: {sorted(missing)}')
+          print(data['url'])
+          print('release assets verified')
+          PY
