@@ -1,0 +1,229 @@
+STD-DVA-001 v0.2.6 human access document
+
+This file is for human access only. Authority is defined by std/, prg/, and spl/. This file does not define DVA behavior, validation rules, runtime authority, or package authority.
+
+PURPOSE
+
+Preserve the complete supported existing package state, apply only explicitly declared changes, and prove that no undeclared modeled state changed.
+
+PRIMARY RUNTIME
+
+prg/PRG-DVA-001_v0.2.6.py
+
+RUNTIME
+
+Python 3.10 or newer. Python standard library only. No network access is required.
+
+LICENSE
+
+This package is licensed under the Apache License, Version 2.0. The complete license terms are in LICENSE.
+
+NOTICE contains the approved project prayer, copyright attribution, and license notice. NOTICE is informational and does not modify the Apache License, Version 2.0.
+
+GETTING STARTED
+
+DVA requires Python 3.10 or newer and uses only the Python standard
+library.
+
+From the directory containing the release archive and checksum sidecar:
+
+sha256sum -c STD-DVA-001_v0.2.6.tar.gz.sha256
+tar -xzf STD-DVA-001_v0.2.6.tar.gz
+cd STD-DVA-001
+
+Confirm the runtime:
+
+python3 prg/PRG-DVA-001_v0.2.6.py --version
+python3 prg/PRG-DVA-001_v0.2.6.py --help
+
+Inspect the package that will be used as the baseline:
+
+python3 prg/PRG-DVA-001_v0.2.6.py inspect BASELINE.tar.gz
+
+The inspect output provides baseline_sha256 and the data_sha256 value
+for each modeled regular file. Use those exact values when constructing
+the instruction.
+
+COMMAND REFERENCE
+
+inspect
+Reads one baseline archive and prints its baseline digest, root name,
+tree root, and modeled inventory. It does not modify the baseline.
+
+plan
+Validates the baseline and instruction, normalizes the operations, and
+writes the deterministic mutation plan.
+
+apply
+Applies the declared operations to the bound baseline and writes the
+candidate archive and required audit output after internal verification.
+
+verify
+Independently checks that an existing candidate equals the declared
+transformation and contains no undeclared modeled change.
+
+rewind
+Creates a byte-exact verified copy of the baseline at a distinct output
+path.
+
+--version
+Prints the runtime version.
+
+--help
+Prints the command syntax.
+
+INSTRUCTION FORMAT
+
+An instruction is a JSON object containing exactly:
+
+format
+baseline_sha256
+operations
+
+format must be:
+
+cleanroom-mutator-instruction/v1
+
+baseline_sha256 must equal the baseline_sha256 emitted by inspect.
+
+operations must be a non-empty array containing create, replace, delete,
+or rename operations.
+
+Paths are package-relative. Do not include the archive root directory
+name.
+
+Create and replace require exactly one content representation:
+
+content_utf8
+content_base64
+
+Replace, delete, and rename require expected_sha256. Use the file's
+data_sha256 value from inspect.
+
+mode is an optional JSON integer from 0 through 4095. Decimal 420 is
+Unix mode 0644. A create operation defaults to mode 0644 when mode is
+omitted. A replace operation preserves the existing mode when mode is
+omitted.
+
+One instruction cannot affect the same path more than once.
+
+COMPLETE WORKFLOW
+
+1. Inspect the baseline.
+
+python3 prg/PRG-DVA-001_v0.2.6.py inspect BASELINE.tar.gz
+
+2. Create INSTRUCTION.json using the emitted baseline_sha256 and file
+data_sha256 values.
+
+3. Produce the plan.
+
+python3 prg/PRG-DVA-001_v0.2.6.py plan \
+  BASELINE.tar.gz \
+  INSTRUCTION.json \
+  --output PLAN.json
+
+4. Apply the instruction.
+
+python3 prg/PRG-DVA-001_v0.2.6.py apply \
+  BASELINE.tar.gz \
+  INSTRUCTION.json \
+  --output CANDIDATE.tar.gz \
+  --audit CANDIDATE.audit.json
+
+5. Independently verify the candidate.
+
+python3 prg/PRG-DVA-001_v0.2.6.py verify \
+  BASELINE.tar.gz \
+  INSTRUCTION.json \
+  CANDIDATE.tar.gz
+
+A successful verify command reports PASS only when the candidate matches
+the declared transformation and no undeclared modeled path changed.
+
+6. When a byte-exact copy of the original baseline is required:
+
+python3 prg/PRG-DVA-001_v0.2.6.py rewind \
+  BASELINE.tar.gz \
+  --output RESTORED.tar.gz
+
+OPERATION EXAMPLES
+
+All-zero SHA-256 values in these examples are structural placeholders.
+Replace baseline_sha256 and expected_sha256 with the exact values emitted
+by inspect.
+
+CREATE
+
+{
+  "format": "cleanroom-mutator-instruction/v1",
+  "baseline_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "operations": [
+    {
+      "op": "create",
+      "path": "docs/new-file.txt",
+      "content_utf8": "New file content\n",
+      "mode": 420
+    }
+  ]
+}
+
+REPLACE
+
+{
+  "format": "cleanroom-mutator-instruction/v1",
+  "baseline_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "operations": [
+    {
+      "op": "replace",
+      "path": "docs/existing-file.txt",
+      "expected_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "content_utf8": "Replacement content\n"
+    }
+  ]
+}
+
+DELETE
+
+{
+  "format": "cleanroom-mutator-instruction/v1",
+  "baseline_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "operations": [
+    {
+      "op": "delete",
+      "path": "docs/obsolete-file.txt",
+      "expected_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}
+
+RENAME
+
+{
+  "format": "cleanroom-mutator-instruction/v1",
+  "baseline_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "operations": [
+    {
+      "op": "rename",
+      "from_path": "docs/old-name.txt",
+      "to_path": "docs/new-name.txt",
+      "expected_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}
+
+FIXTURES
+
+fixtures/VALID_INSTRUCTION.json
+
+TESTS
+
+tests/test_prg_dva_001.py contains the inherited regression tests for DVA.
+
+MANIFEST VERIFICATION
+
+From the package root, verify every row in manifest/MANIFEST.sha256 against the corresponding package-relative file. The archive SHA-256 is recorded externally in STD-DVA-001_v0.2.6.tar.gz.sha256.
+
+SCOPE BOUNDARY
+
+DVA performs deterministic local archive inspection, planning, declared mutation, verification, audit generation, and rewind. It does not infer package changes, access a repository, use the network, or execute package contents.
