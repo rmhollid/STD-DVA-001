@@ -1,0 +1,725 @@
+# 1. DOCUMENT_METADATA
+NAME: "DETERMINISTIC_VERIFIED_APPLICATION_STANDARD"
+CATEGORY: "STSF_PROGRAM_PACKAGE_STANDARD"
+IDENTIFIER: "STD-DVA-001"
+VERSION: "0.2.6"
+STATUS: "REVIEW"
+AUTHOR: "Robert Michael Holliday"
+AUTHORITATIVE_BODY: "STSF_GOVERNANCE_AUTHORITY"
+LAST_UPDATED: "2026-06-26"
+COMPATIBILITY: "STSF==7.8.23"
+PROFILE_CLAIMS: ["STSF_BASE_PROFILE","STSF_SELF_CONTAINED_SOURCE_SYSTEM_PROFILE"]
+CANONICAL_SOURCE_SYSTEM_ROOT_MODEL: "MINIMAL_OPERATOR_ROOT"
+CANONICAL_AUTHORITY_CONTAINERS: ["std","prg","spl"]
+CANONICAL_OPERATOR_ENTRYPOINT_PATTERN: "^prg/PRG-DVA-001_v0\\.2\\.6\\.py$"
+CANONICAL_HUMAN_ACCESS_DOCUMENT: "read me.txt"
+# 2. PURPOSE_SCOPE
+STD-DVA-001 defines the Deterministic Verified Application program package. Its purpose is to preserve the complete supported existing package state, apply only explicitly declared changes, and prove that no undeclared modeled state changed.
+
+This standard governs the DVA package, instruction admission, baseline binding, deterministic planning, declared transformation, candidate serialization, preservation verification, audit production, verified publication, independent verification, rewind, package layout, and runtime binding.
+
+This standard applies only to the local Python program and package described here. It does not authorize repository integration, network operation, background execution, inferred cleanup, automatic repair, new mutation operations, or changes outside an explicit DVA instruction.
+
+The structural STSF conversion is subordinate to the existing DVA function. It SHALL NOT change mutation semantics, instruction semantics, preservation semantics, publication ordering, audit meaning, or rewind behavior.
+# 3. DEFINITIONS
+DVA
+The Deterministic Verified Application program governed by this standard.
+
+Supported Package State
+The root record and every accepted regular-file or directory record, including modeled bytes, metadata, literal path, and accepted PAX state.
+
+Declared Path Set
+The complete set of package-relative paths explicitly named by a validated instruction operation.
+
+Undeclared Difference
+A modeled state difference whose path is outside the declared path set.
+
+Bound Baseline Snapshot
+The exact archive byte sequence, SHA-256 digest, root name, and parsed state obtained from one complete stable read.
+
+Candidate
+The deterministic archive produced from the declared transformation of the bound baseline.
+
+Preservation PASS
+The state in which the unauthorized difference set is empty and the candidate equals the declared transformation.
+
+Authority Container
+One of std, prg, or spl. Other package surfaces do not create authority.
+
+PRG Source Binding
+The inert machine-readable record in the runtime that identifies its exact STD, SPL, entrypoint, command surface, and protocol identities without controlling execution.
+# 4. SYSTEM_OVERVIEW
+The DVA lifecycle is:
+
+BASELINE_READ -> SNAPSHOT_BINDING -> INSTRUCTION_PARSE -> CLOSED_SCHEMA_VALIDATION -> PLAN -> DECLARED_TRANSFORMATION -> CANDIDATE_SERIALIZATION -> CANDIDATE_REOPEN -> TRANSFORMATION_CHECK -> PRESERVATION_CHECK -> AUDIT_GENERATION -> VERIFIED_PUBLICATION.
+
+Inspect stops after snapshot and inventory production. Plan stops after canonical plan production. Verify performs the transformation and preservation checks against an existing candidate without publishing output. Rewind copies the bound baseline bytes exactly.
+
+The package authority containers are STD, PRG, and SPL. SPL-DVA-001 is retained as DRAFT future content and does not provide an active runtime binding. Other package surfaces do not create authority.
+# 5. ARCHITECTURE
+The closed top-level package set is:
+
+LICENSE
+NOTICE
+read me.txt
+std
+prg
+spl
+fixtures
+manifest
+tests
+
+std contains this governing DVA standard. prg contains exactly one executable runtime. spl contains the DRAFT SPL placeholder. tests contains the inherited regression suite. fixtures contains the valid instruction example. manifest contains MANIFEST.sha256. LICENSE contains the unmodified Apache License, Version 2.0 text. NOTICE contains the approved project prayer, copyright attribution, and license notice. LICENSE and NOTICE do not create package authority.
+
+LICENSE SHALL contain the unmodified Apache License, Version 2.0 text.
+
+NOTICE SHALL contain exactly:
+
+CLEAN-ROOM MUTATOR
+
+“And if his offering be a goat, then he shall offer it before the LORD.”
+
+Leviticus 3:12
+
+Copyright 2026 Robert Michael Holliday
+
+Licensed under the Apache License, Version 2.0.
+
+The canonical runtime is prg/PRG-DVA-001_v0.2.6.py. No second executable wrapper is authorized.
+# 6. INTERFACE_DEFINITIONS
+The program exposes inspect, plan, apply, verify, rewind, version, and help surfaces.
+
+Inspect accepts one supported baseline archive and emits canonical JSON inventory without mutation.
+
+Plan accepts a baseline, instruction, and plan destination. It validates all preconditions and publishes only the canonical plan.
+
+Apply accepts a baseline, instruction, candidate destination, and audit destination. It publishes candidate and audit only after complete internal verification.
+
+Verify accepts a baseline, instruction, and candidate. It emits PASS evidence only when the candidate equals the declared transformation and contains no undeclared modeled difference.
+
+Rewind accepts a baseline and distinct output path and creates a byte-exact verified copy.
+
+Version and help emit operator information without package mutation.
+# 7. DATA_MODELS
+The normative schemas are:
+
+SCHEMA_DVA_ARCHIVE_ENTRY: path, kind, data, mode, uid, gid, uname, gname, exact mtime, type flag, link name, device fields, and supplemental PAX metadata.
+
+SCHEMA_DVA_PACKAGE_STATE: root record plus a unique map from accepted relative paths to archive-entry records.
+
+SCHEMA_DVA_PACKAGE_SNAPSHOT: source path, exact bytes, SHA-256 digest, root name, and package state.
+
+SCHEMA_DVA_INSTRUCTION: format, baseline_sha256, and non-empty operations.
+
+SCHEMA_DVA_CREATE_OPERATION: op, path, exactly one content representation, and optional mode.
+
+SCHEMA_DVA_REPLACE_OPERATION: op, path, expected_sha256, exactly one content representation, and optional mode.
+
+SCHEMA_DVA_DELETE_OPERATION: op, path, and expected_sha256.
+
+SCHEMA_DVA_RENAME_OPERATION: op, from_path, to_path, and expected_sha256.
+
+SCHEMA_DVA_MUTATION_PLAN: format, instruction identifier, baseline digest, declared paths, and normalized operations.
+
+SCHEMA_DVA_CANDIDATE_AUDIT: result, baseline and candidate digests, tree roots, declared paths, actual changed paths, unauthorized paths, instruction binding, and snapshot binding.
+
+SCHEMA_DVA_INSPECT_REQUEST, SCHEMA_DVA_PLAN_REQUEST, SCHEMA_DVA_APPLY_REQUEST, SCHEMA_DVA_VERIFY_REQUEST, SCHEMA_DVA_REWIND_REQUEST, SCHEMA_DVA_VERSION_REQUEST, and SCHEMA_DVA_HELP_REQUEST describe their command inputs.
+
+SCHEMA_DVA_INSPECT_RESULT, SCHEMA_DVA_PLAN_RESULT, SCHEMA_DVA_APPLY_RESULT, SCHEMA_DVA_VERIFY_RESULT, SCHEMA_DVA_REWIND_RESULT, SCHEMA_DVA_VERSION_RESULT, and SCHEMA_DVA_HELP_RESULT describe their command outputs.
+
+SCHEMA_DVA_ERROR is a controlled error containing the failed boundary and human-readable reason.
+
+# 8. ALGORITHMIC_FORMALISM
+The complete inherited mathematical skeleton is retained below as normative program formalism.
+
+1. BYTE SNAPSHOT
+
+Let B be the byte sequence returned by one complete read of the baseline file descriptor.
+
+Define:
+
+    hB = SHA256(B)
+
+The parser, plan, transformation, and audit use B and hB. They do not reopen the baseline path to obtain a second state.
+
+For instruction I:
+
+    I.baseline_sha256 = hB
+
+is required before transformation.
+
+Replacing the filesystem path after B is read does not replace B.
+
+2. PATH DOMAIN
+
+Let UTF8(x) mean x is encodable as strict UTF-8.
+
+Let COMPONENTS(p) be the sequence obtained by splitting p only on the literal slash byte represented by "/".
+
+A valid relative path satisfies:
+
+    p != empty
+    UTF8(p)
+    p does not begin with "/"
+    NUL is not in p
+    for every c in COMPONENTS(p):
+        c != empty
+        c != "."
+        c != ".."
+
+Validation does not transform p.
+
+Therefore:
+
+    VALID(p) implies NORMALIZE(p) = p
+
+A backslash is an ordinary character and is not a separator.
+
+3. SYSTEM MODEL
+
+Let epsilon denote the explicit top-level package root and let P be the set of valid relative paths beneath it.
+
+Define:
+
+    P0 = {epsilon} union P
+
+A supported package state is a finite partial function:
+
+    S : P0 -> R
+
+Each entry record is:
+
+    R(p) = (k, b, m, u, g, un, gn, td, tf, ln, dj, dn, px, pg)
+
+where:
+
+    k  = entry kind: regular file or directory
+    b  = file bytes, or the empty byte string for a directory
+    m  = mode
+    u  = numeric user identifier
+    g  = numeric group identifier
+    un = UTF-8 user name
+    gn = UTF-8 group name
+    td = exact finite decimal modification-time string
+    tf = one-byte tar type flag
+    ln = UTF-8 link-name field
+    dj = device major field
+    dn = device minor field
+    px = supplemental member PAX key-value map
+    pg = initial archive-global supplemental PAX key-value map
+
+The archive-global map pg is stored only on R(epsilon). It is empty for every other entry.
+
+4. HIERARCHY INVARIANT
+
+For path p with components [c1, ..., cn], define each strict prefix:
+
+    prefix_i(p) = c1 / ... / ci, for 1 <= i < n
+
+A state is structurally valid only when:
+
+    for every p in dom(S):
+        for every existing prefix_i(p) in dom(S):
+            k(prefix_i(p)) = directory
+
+Thus a regular file cannot be the parent of another entry.
+
+The invariant is checked for the loaded baseline and after every operation.
+
+5. PAX BOUNDARY
+
+Structural PAX keys are:
+
+    PX_STRUCT = {path, linkpath, size, uid, gid, uname, gname, mtime}
+
+Structural values are represented by effective record fields. Supplemental PAX metadata excludes PX_STRUCT.
+
+Initial archive-global supplemental PAX state is pg.
+
+If the archive-global PAX map changes after member traversal begins, loading is undefined:
+
+    MID_GLOBAL_CHANGE(B) implies LOAD(B) is undefined
+
+Sparse entries, archive-global structural PAX keys, and unsupported entry kinds also make LOAD undefined.
+
+6. EXACT DECIMAL TIME
+
+Let DECIMAL_CANON(x) parse x as a finite arbitrary-precision decimal and emit fixed-point canonical text with redundant trailing fractional zeroes removed.
+
+For a member with a local structural PAX mtime string x:
+
+    td = DECIMAL_CANON(x)
+
+No binary floating-point conversion occurs before td is stored or hashed.
+
+During serialization, a fractional td is written as the exact PAX mtime value td.
+
+Therefore:
+
+    DECIMAL_CANON(mtime_LOAD(WRITE(R))) = td(R)
+
+7. ENTRY HASH
+
+For each p in dom(S), define:
+
+    d(p) = SHA256(b(p))
+
+    e(p) = SHA256(
+        CANONICAL_JSON(
+            k(p),
+            m(p),
+            u(p),
+            g(p),
+            un(p),
+            gn(p),
+            td(p),
+            tf(p),
+            ln(p),
+            dj(p),
+            dn(p),
+            px(p),
+            pg(p),
+            d(p)
+        )
+    )
+
+8. SYSTEM ROOT
+
+Sort literal paths lexicographically:
+
+    p1 < p2 < ... < pn
+
+Define:
+
+    T(S) = SHA256(
+        CANONICAL_JSON(
+            [(p1, e(p1)), ..., (pn, e(pn))]
+        )
+    )
+
+Two supported states are equal when their domains and complete records are equal.
+
+9. INSTRUCTION MODEL
+
+An instruction is:
+
+    I = [o1, o2, ..., oq]
+
+Each operation is one of:
+
+    CREATE(p, b, m)
+    REPLACE(p, h, b, optional_m)
+    DELETE(p, h)
+    RENAME(p, q, h)
+
+Each digest h is exactly 64 hexadecimal characters and is normalized to lowercase.
+
+A mode is an integer in [0, 4095] and cannot be a Boolean value.
+
+Let KEYS(x) be the set of fields present in object x.
+
+Define the closed instruction field set:
+
+    K_instruction = {format, baseline_sha256, operations}
+
+Define the closed operation field sets:
+
+    K_create =
+        {op, path, content_utf8, content_base64, mode}
+
+    K_replace =
+        {op, path, expected_sha256,
+         content_utf8, content_base64, mode}
+
+    K_delete =
+        {op, path, expected_sha256}
+
+    K_rename =
+        {op, from_path, to_path, expected_sha256}
+
+For an object x governed by field set K, define:
+
+    UNKNOWN_K(x) = KEYS(x) - K
+
+Accepted instruction objects satisfy:
+
+    KEYS(instruction) = K_instruction
+
+Accepted operation objects satisfy:
+
+    UNKNOWN_K(op_object) = empty set
+
+Therefore:
+
+    VALID(x) implies UNKNOWN_K(x) = empty set
+
+For CREATE and REPLACE, let:
+
+    C = {content_utf8, content_base64}
+
+The content selector cardinality is:
+
+    |KEYS(op_object) intersection C| = 1
+
+For every v0.1.3 instruction J containing only permitted fields:
+
+    V_0.2.0(J) = V_0.1.3(J)
+
+For every J containing an unknown field:
+
+    UNKNOWN(J) != empty set
+        implies
+    V_0.2.0(J) is undefined
+
+The authorized path set is:
+
+    A(I) = union of every source and destination path named by I
+
+No path may occur in more than one operation effect set.
+
+10. TRANSFORMATION
+
+The transformation is:
+
+    F(S, I) = S'
+
+Each operation is evaluated in declared order. After every operation:
+
+    HIERARCHY(S_current) = true
+
+CREATE:
+
+    precondition:
+        p not in dom(S)
+
+    effect:
+        S'(p) = new regular-file record
+
+REPLACE:
+
+    preconditions:
+        p in dom(S)
+        k(p) = file
+        SHA256(b_old(p)) = h
+
+    effect:
+        b_new(p) = b
+        mode changes only when explicitly supplied
+        every other record field remains unchanged
+
+DELETE:
+
+    preconditions:
+        p in dom(S)
+        k(p) = file
+        SHA256(b(p)) = h
+
+    effect:
+        p not in dom(S')
+
+RENAME:
+
+    preconditions:
+        p in dom(S)
+        q not in dom(S)
+        k(p) = file
+        SHA256(b(p)) = h
+
+    effect:
+        S'(q) = S(p)
+        p not in dom(S')
+
+Any failed precondition or hierarchy invariant makes F undefined.
+
+11. PRESERVATION INVARIANT
+
+For every p not in A(I):
+
+    S'(p) = S(p)
+
+Define:
+
+    D(S, S') =
+        {p | p belongs to dom(S) union dom(S')
+             and
+             S(p) != S'(p)}
+
+The transaction is valid only when:
+
+    D(S, S') is a subset of A(I)
+
+The audit requires:
+
+    D(S, S') - A(I) = empty set
+
+12. SERIALIZATION EXACTNESS
+
+Let C = F(S, I).
+
+After canonical serialization and reopening:
+
+    LOAD(WRITE(C)) = C
+
+Validation requires:
+
+    T(LOAD(candidate_temp)) = T(C)
+
+Only a verified temporary candidate can enter publication.
+
+13. DETERMINISM
+
+The canonical writer uses:
+
+    literal sorted member paths
+    fixed gzip time = 0
+    fixed compression level
+    stable PAX tar format
+    exact decimal time regeneration
+    preserved supported entry metadata
+    regenerated structural PAX transport
+    no network input
+    no random semantic input
+    no current-time semantic input
+
+Temporary filenames do not enter archive bytes.
+
+Therefore, for fixed supported S and I:
+
+    WRITE(F(S, I)) = WRITE(F(S, I))
+
+14. TEMPORARY PUBLICATION
+
+Let O be the candidate destination and A be the audit destination.
+
+The apply sequence is:
+
+    write candidate temporary Ctmp
+    fsync Ctmp
+    load and verify Ctmp
+    construct audit Atmp from B and Ctmp
+    fsync Atmp
+    preserve existing O and A for rollback
+    replace A with Atmp
+    verify published A hash
+    replace O with Ctmp
+    verify published O hash
+    fsync destination directories
+
+For any ordinary failure before publication:
+
+    O_after = O_before
+    A_after = A_before
+
+For an ordinary publication exception, rollback attempts:
+
+    O_after = O_before
+    A_after = A_before
+
+Candidate and audit are separate paths. Portable filesystems do not provide one atomic primitive for replacing both paths across all supported layouts. The audit is published first, the candidate second, and consumers must verify their hash binding.
+
+15. AUDIT BINDING
+
+The audit commits to:
+
+    baseline snapshot hash
+    instruction baseline hash
+    baseline snapshot binding result
+    baseline tree root
+    canonical instruction hash
+    canonical plan hash
+    declared path set
+    observed changed path set
+    unauthorized changed path set
+    candidate temporary hash
+    candidate tree root
+    preservation result
+
+Binding passes only when:
+
+    SHA256(B) = I.baseline_sha256 = plan.baseline_sha256
+
+Let A0 be the canonical audit object without its own hash.
+
+    audit_id = SHA256(CANONICAL_JSON(A0))
+
+16. REWIND
+
+Rewind reads the baseline once as B, writes a temporary copy, verifies:
+
+    SHA256(temp) = SHA256(B)
+
+and then replaces the rewind destination.
+
+The baseline path is never overwritten.
+
+17. WRITE-PATH SEPARATION
+
+Let Q contain every protected input path and every final write destination for one command.
+
+The command is valid only when resolved filesystem objects are pairwise distinct.
+
+Candidate and audit destinations must not be symbolic links. Their parent directories must already exist.
+
+18. ACCEPTANCE CONDITIONS
+
+A transaction passes exactly when:
+
+    baseline bytes were read into one bound snapshot
+    instruction baseline hash matches the snapshot hash
+    baseline contains only supported state
+    literal paths validate without rewriting
+    hierarchy invariant holds
+    every operation precondition passes
+    hierarchy invariant holds after every operation
+    D(S, S') - A(I) = empty set
+    temporary candidate reopens as F(S, I)
+    audit snapshot binding is PASS
+    audit preservation invariant is PASS
+    verified candidate and audit are published
+
+19. RESOURCE BOUNDARY
+
+Version 0.2.3 retains the archive byte snapshot, parsed state, and regular-file payloads in memory. Resource limits are external to this version.
+
+20. DUPLICATE-FIELD CLOSURE
+
+For JSON source text T, let O range over every object encoded in T.
+
+Define:
+
+    COUNT(O, k) = number of occurrences of field k in O
+
+    DUPLICATES(O) = {k | COUNT(O, k) > 1}
+
+Instruction parsing is defined only when:
+
+    for every object O in T:
+        DUPLICATES(O) = empty set
+
+Therefore:
+
+    VALID(T)
+        implies
+    for every object O in T:
+        DUPLICATES(O) = empty set
+
+Let P_old be ordinary JSON parsing and P_strict be duplicate-rejecting parsing.
+For duplicate-free T:
+
+    P_strict(T) = P_old(T)
+
+For T containing any duplicate field:
+
+    P_strict(T) is undefined
+
+Thus accepted instruction text is uniquely represented at the object-field level before closed-schema validation.
+
+21. DIRECTORY REPRESENTATION CLOSURE
+
+For archive member d, define:
+
+    kind(d) = directory-entry kind
+    size(d) = effective tar member size
+
+A supported directory member satisfies:
+
+    SUPPORTED_DIRECTORY(d)
+        iff
+    kind(d) = directory and size(d) = 0
+
+For internal state record R(p):
+
+    kind(R(p)) = directory
+        implies
+    data(R(p)) = empty byte string
+
+Therefore LOAD(T) is defined only when every directory member in T has size zero.
+VALID_STATE(S) is defined only when every directory record contains empty data.
+WRITE(S) is defined only for VALID_STATE(S).
+
+For every archive T in the prior supported domain where all directory members have size zero:
+
+    LOAD_new(T) = LOAD_old(T)
+
+For any archive T containing directory d with size(d) > 0:
+
+    LOAD_new(T) is undefined
+
+This prevents a many-to-one projection in which nonzero directory bytes disappear while preservation is reported as PASS.
+# 9. DEPENDENCIES
+The package depends on STD-STSF-004_v7.8.23 as an external governing specification, the local STD-DVA-001 authority, CPython 3.10 or newer, and operating-system filesystem services exposed through the Python standard library. SPL-DVA-001 is retained as DRAFT future content and is not an active runtime dependency.
+
+No third-party Python package, network service, remote repository, credential source, or background process is required.
+# 10. CONSTRAINTS
+DVA SHALL NOT infer changes, normalize undeclared content, modify protected inputs, accept unsupported archive state, claim preservation over unmodeled state, publish unverified output, weaken the closed instruction schema, or treat successful execution as independent conformance evidence.
+
+The instruction, plan, and audit protocol identifiers are frozen at cleanroom-mutator-instruction/v1, cleanroom-mutator-plan/v1, and cleanroom-mutator-audit/v1.
+
+The program retains compressed archive bytes, parsed state, and regular-file contents in memory. External resource controls are required for untrusted or very large archives.
+# 11. FAILURE_MODES
+DVA_ARCHIVE_INVALID
+DVA_ARCHIVE_UNSUPPORTED
+DVA_PATH_INVALID
+DVA_INSTRUCTION_INVALID
+DVA_BASELINE_HASH_MISMATCH
+DVA_EXPECTED_HASH_MISMATCH
+DVA_OPERATION_PRECONDITION_FAILED
+DVA_OUTPUT_ALIAS_REJECTED
+DVA_DESTINATION_INVALID
+DVA_UNDECLARED_CHANGE
+DVA_SERIALIZATION_MISMATCH
+DVA_AUDIT_FAILED
+DVA_PUBLICATION_FAILED
+DVA_VERIFY_FAILED
+DVA_REWIND_FAILED
+DVA_RUNTIME_RESIDUE_DETECTED
+DVA_MANIFEST_INVALID
+DVA_VALIDATION_FAILED
+
+Each failure SHALL stop at the failed boundary and SHALL NOT be reported as successful completion.
+# 12. SECURITY_CONSIDERATIONS
+DVA is a local mutation authority surface. It validates literal relative paths, rejects unsupported member types, avoids shell interpretation of instruction content, requires exact hashes for destructive operations, binds every run to one baseline snapshot, separates temporary construction from publication, and rejects undeclared modeled changes.
+
+The package does not authorize network access, remote execution, hidden background work, credential access, repository synchronization, or execution of package contents.
+# 13. VALIDATION_CRITERIA
+Full conformance requires all of the following:
+
+The governing STD and SPL documents SHALL satisfy the exact fifteen-section STSF document model.
+The package root SHALL contain only the authorized top-level set, and read me.txt SHALL remain non-authoritative.
+The runtime SHALL contain the exact PRG source binding, and every referenced path SHALL resolve.
+SPL-DVA SHALL bind the exact parent STD, parent PRG, runtime, and entrypoint.
+The three cleanroom-mutator protocol identifiers SHALL remain unchanged.
+Exactly one canonical operator runtime SHALL exist under prg.
+The runtime SHALL compile under Python 3.10 or newer.
+All forty-five inherited regression tests SHALL pass without removal, skip, or weakening.
+A controlled mutation SHALL change only its declared modeled path.
+Candidate and audit content SHALL be deterministic for identical inputs.
+Verify SHALL reject every undeclared modeled difference.
+Rewind SHALL reproduce the baseline bytes exactly.
+Prepublication failure SHALL preserve existing destinations and leave no temporary residue.
+manifest/MANIFEST.sha256 SHALL cover every packaged regular file except itself.
+Every manifest row SHALL match the packaged file bytes.
+LICENSE SHALL match the unmodified Apache License, Version 2.0 text.
+NOTICE SHALL match the approved package notice exactly and SHALL remain informational.
+The external archive SHA-256 sidecar SHALL match the final archive.
+No required third-party module or network surface SHALL exist.
+The relocated PRG runtime SHALL be behaviorally equivalent to the original runtime except for approved identity changes.
+No unauthorized top-level path SHALL exist.
+
+The final package SHALL contain no __pycache__, pyc, temporary, staging, or undeclared top-level residue.
+# 14. IMPLEMENTATION_GUIDELINES
+Keep function names and boundaries direct. Treat PRG_SOURCE_BINDING as inert identity metadata. Preserve existing error behavior unless a separately approved functional repair changes it. After tests and validation, rebuild the manifest and archive deterministically.
+# 15. VERSIONING_POLICY
+v0.2.0 is the fixed structural conversion version.
+
+v0.2.1 removes the package manifest from the intrinsic materialized-surface declaration, reclassifies its artifact record as an optional report, and aligns the current authority and runtime version references. No DVA mutation behavior changes.
+
+v0.2.2 removes the unauthorized build-report file and its package declarations. No DVA mutation behavior changes.
+
+v0.2.3 removes the obsolete audit evidence file and its direct package declarations. No DVA mutation behavior changes.
+
+v0.2.4 applies the approved C01-C14 package cleanup, reduces PRG_SOURCE_BINDING to its required fields, replaces unfinished SPL content with a DRAFT stub, and removes optional codebase-profile records. No DVA mutation behavior changes.
+
+v0.2.5 expands read me.txt with getting-started instructions, command explanations, one complete workflow, and create, replace, delete, and rename examples. No DVA mutation behavior changes.
+
+v0.2.6 adds Apache License 2.0 licensing, a root NOTICE containing the approved project prayer and attribution, and corresponding package declarations. No DVA mutation behavior changes.
