@@ -1,0 +1,76 @@
+name: Stage verified STD-DVA-001 v0.2.10
+
+on:
+  push:
+    branches:
+      - dva-v0.2.10-stage
+    paths:
+      - transport/READY
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staging branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: dva-v0.2.10-stage
+
+      - name: Reconstruct and verify authoritative package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat transport/package.b64.part* | base64 --decode > /tmp/STD-DVA-001_v0.2.10.tar.gz
+          cp transport/STD-DVA-001_v0.2.10.tar.gz.sha256 /tmp/
+          cd /tmp
+          sha256sum -c STD-DVA-001_v0.2.10.tar.gz.sha256
+          rm -rf /tmp/dva-unpack
+          mkdir -p /tmp/dva-unpack
+          tar -xzf STD-DVA-001_v0.2.10.tar.gz -C /tmp/dva-unpack
+          cd /tmp/dva-unpack/STD-DVA-001
+          sha256sum -c manifest/MANIFEST.sha256
+          test "$(python3 prg/PRG-DVA-001_v0.2.10.py --version)" = "0.2.10"
+          python3 -m unittest discover -s tests -p 'test_*.py'
+
+      - name: Replace active repository source with verified package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f prg/PRG-DVA-001_v0.2.6.py
+          rm -f spl/SPL-DVA-001_v0.2.6.txt
+          rm -f std/STD-DVA-001_v0.2.6.txt
+          rm -f STD-DVA-001_v0.2.6.tar.gz STD-DVA-001_v0.2.6.tar.gz.sha256
+          rm -f .release-cleanup-plan.txt
+          rm -f .github/workflows/publish-v0.2.6-release.yml
+          cp -a /tmp/dva-unpack/STD-DVA-001/. .
+          cp /tmp/STD-DVA-001_v0.2.10.tar.gz ./STD-DVA-001_v0.2.10.tar.gz
+          cp /tmp/STD-DVA-001_v0.2.10.tar.gz.sha256 ./STD-DVA-001_v0.2.10.tar.gz.sha256
+          rm -rf transport
+
+      - name: Verify candidate repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum -c STD-DVA-001_v0.2.10.tar.gz.sha256
+          sha256sum -c manifest/MANIFEST.sha256
+          test "$(python3 prg/PRG-DVA-001_v0.2.10.py --version)" = "0.2.10"
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          test ! -e prg/PRG-DVA-001_v0.2.6.py
+          test ! -e spl/SPL-DVA-001_v0.2.6.txt
+          test ! -e std/STD-DVA-001_v0.2.6.txt
+          test ! -e STD-DVA-001_v0.2.6.tar.gz
+          test ! -e STD-DVA-001_v0.2.6.tar.gz.sha256
+
+      - name: Commit verified candidate to staging branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git status --short
+          git commit -m "Stage verified STD-DVA-001 v0.2.10"
+          git push origin HEAD:dva-v0.2.10-stage
