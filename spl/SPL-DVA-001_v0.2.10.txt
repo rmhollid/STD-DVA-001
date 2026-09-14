@@ -1,0 +1,77 @@
+# 1. DOCUMENT_METADATA
+NAME: "DVA_PYTHON_RUNTIME_BINDING"
+CATEGORY: "STSF_LANGUAGE_BINDING_STANDARD"
+IDENTIFIER: "SPL-DVA-001"
+VERSION: "0.2.10"
+STATUS: "REVIEW"
+AUTHOR: "Robert Michael Holliday"
+AUTHORITATIVE_BODY: "STSF_GOVERNANCE_AUTHORITY"
+LAST_UPDATED: "2026-07-22"
+COMPATIBILITY: "STSF==7.8.23"
+PROFILE_CLAIMS: ["STSF_BASE_PROFILE"]
+
+# 2. PURPOSE_SCOPE
+SPL-DVA-001 binds STD-DVA-001_v0.2.10 to the Python runtime prg/PRG-DVA-001_v0.2.10.py. It defines the accepted language, standard-library dependency boundary, archive-byte model, closed JSON instruction binding, command binding, deterministic serialization behavior, filesystem publication behavior, controlled failure behavior, and test obligations.
+
+This binding is local to DVA. It does not connect DVA to ASK, CTI, repository systems, network systems, provider systems, adapters, or any other execution system.
+
+# 3. DEFINITIONS
+PYTHON_BINDING is the Python 3.10-or-newer implementation in prg/PRG-DVA-001_v0.2.10.py. BASELINE_SNAPSHOT is one stable complete byte read of the source archive plus its digest and parsed modeled state. CLOSED_INSTRUCTION is a duplicate-free JSON object conforming exactly to cleanroom-mutator-instruction/v1. MODELED_ENTRY is one accepted regular-file or zero-size directory tar member with preserved metadata. VERIFIED_PUBLICATION is candidate and audit publication only after transformation and preservation checks pass. INDEPENDENT_TOOL means DVA receives explicit archive and instruction paths directly and does not obtain direction or execution through another system.
+
+# 4. SYSTEM_OVERVIEW
+The Python binding exposes inspect, plan, apply, verify, rewind, version, and help. inspect reads and reports. plan validates and writes a deterministic plan. apply constructs and verifies a candidate before publishing candidate and audit. verify independently reproduces the declared transformation and compares it with an existing candidate. rewind publishes a byte-exact copy of the baseline to a distinct path.
+
+# 5. ARCHITECTURE
+The runtime contains command parsing, duplicate-free JSON parsing, byte snapshot binding, tar member validation, modeled state construction, instruction schema validation, operation normalization, plan construction, declared transformation, deterministic archive writing, candidate reopen, transformation comparison, undeclared-change comparison, atomic two-output publication, independent verification, rewind, and controlled error reporting.
+
+The binding contains no provider registry, adapter registry, CTI invocation, ASK invocation, inference engine, repair planner, standards validator, repository client, network client, package execution hook, or background worker.
+
+# 6. INTERFACE_DEFINITIONS
+inspect BASELINE emits baseline path, baseline SHA-256, root name, tree root, program version, and modeled inventory.
+
+plan BASELINE INSTRUCTION --output PLAN validates the bound baseline and instruction and atomically writes one cleanroom-mutator-plan/v1 object.
+
+apply BASELINE INSTRUCTION --output CANDIDATE --audit AUDIT validates all preconditions, applies exactly the declared file operations, verifies preservation, and atomically publishes the candidate and cleanroom-mutator-audit/v1 record.
+
+verify BASELINE INSTRUCTION CANDIDATE emits PASS only when the supplied candidate equals the declared transformation and has no undeclared modeled changes.
+
+rewind BASELINE --output OUTPUT writes and verifies a byte-exact copy at a distinct path.
+
+version and help emit local operator information and perform no mutation.
+
+# 7. DATA_MODELS
+The Python binding represents raw archive bytes as bytes, SHA-256 values as lowercase hexadecimal strings, exact tar modification times as decimal strings, modes and ownership values as integers, modeled package state as a path-keyed mapping, operations as closed JSON mappings, plans and audits as canonical JSON mappings, and command results as deterministic JSON-compatible objects.
+
+The instruction top-level required fields are format, baseline_sha256, and operations. root_name is the only optional top-level field. Supported operations are create, replace, delete, and rename. Create and replace contain exactly one of content_utf8 or content_base64. Replace, delete, and rename require the expected SHA-256 of the affected regular file. Unknown and duplicate fields are rejected.
+
+# 8. ALGORITHMIC_FORMALISM
+The runtime reads the baseline once into bytes B and computes hB = SHA256(B). Parsing, planning, transformation, audit, and verification use B and hB rather than reopening the baseline path.
+
+For baseline modeled state S, validated instruction I, declared path set D, and operation application APPLY, the expected state is E = APPLY(S,I). A candidate state C passes only when C = E and every path outside D has the same modeled record in S and C. The unauthorized change set U = {p | p not in D and S[p] differs from C[p]} must be empty.
+
+Archive serialization is deterministic for a given modeled state and root name. Candidate publication occurs only after reopening the serialized candidate, reproducing its modeled state, verifying C = E, verifying U is empty, and constructing the audit record. Candidate and audit destinations are published as one rollback-protected pair.
+
+# 9. DEPENDENCIES
+The binding requires Python 3.10 or newer and the Python standard library modules argparse, base64, copy, decimal, gzip, hashlib, io, json, os, pathlib, re, shutil, sys, tarfile, tempfile, and typing. It requires local filesystem services. It requires no third-party module, network service, repository, credential, provider, adapter, ASK package, or CTI package.
+
+# 10. CONSTRAINTS
+The runtime shall preserve literal accepted paths without slash rewriting. It shall reject absolute paths, empty components, dot components, traversal components, NUL, non-UTF-8 paths, duplicate archive paths, links, devices, FIFOs, sparse entries, unsupported PAX state, and nonzero directory data.
+
+The runtime shall not infer operations, create missing directories, execute package content, inspect standards for the caller, choose a repair, contact another system, or publish an unverified candidate. Output, audit, plan, and rewind destinations shall not alias protected inputs.
+
+# 11. FAILURE_MODES
+Controlled failures include unstable baseline read, baseline digest mismatch, malformed JSON, duplicate JSON fields, unknown instruction fields, invalid operation shape, invalid path, expected hash mismatch, unsupported archive member, invalid hierarchy, output alias, missing output parent, serialization mismatch, undeclared change, candidate mismatch, audit construction failure, publication failure, rollback failure, verify failure, rewind failure, and runtime residue detection.
+
+Every controlled failure stops the current command and shall not be reported as PASS.
+
+# 12. SECURITY_CONSIDERATIONS
+DVA treats the archive and instruction as untrusted local inputs. It uses no shell interpretation and executes no archive content. Destructive operations require an expected file digest. Unsupported archive representations are rejected rather than falsely preserved. Temporary files remain in destination directories and are removed or rolled back on failure. DVA cannot derive authorization from ASK, CTI, provider output, or adapter output because no such interface exists.
+
+# 13. VALIDATION_CRITERIA
+The binding passes only when it compiles under Python 3.10 or newer, reports version 0.2.10, binds STD-DVA-001_v0.2.10 and SPL-DVA-001_v0.2.10 in PRG_SOURCE_BINDING, exposes only the declared commands, passes the inherited forty-seven regression tests plus the active-entrypoint coherence tests, preserves deterministic candidates, rejects undeclared changes, preserves byte-exact rewind, rejects unsupported archive state, preserves existing destinations on prepublication failure, rolls back paired publication failure, leaves no residue, and verifies the package manifest and external archive sidecar after fresh extraction.
+
+# 14. IMPLEMENTATION_GUIDELINES
+Keep DVA independent and explicit. Obtain the exact mutation instruction from the caller after the caller completes its own standards and validation work. Do not add adapters, provider discovery, automatic repair planning, package-specific validation, or cross-system orchestration. Preserve the frozen v1 instruction, plan, and audit protocol identifiers unless a separately governed protocol version is created.
+
+# 15. VERSIONING_POLICY
+SPL-DVA-001 v0.2.10 supersedes the v0.2.7 DRAFT placeholder. It activates the complete Python binding for the existing runtime without changing create, replace, delete, rename, preservation, publication, verification, rewind, or protocol semantics. Later language-binding changes require coherent increments to STD, SPL, PRG, tests, manifest, archive filename, and external sidecar.

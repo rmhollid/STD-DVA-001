@@ -5,6 +5,7 @@ import io
 import os
 import importlib.util
 import json
+import re
 from pathlib import Path
 import sys
 import tarfile
@@ -12,7 +13,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "prg" / "PRG-DVA-001_v0.2.6.py"
+MODULE_PATH = Path(__file__).resolve().parents[1] / "prg" / "PRG-DVA-001_v0.2.10.py"
 SPEC = importlib.util.spec_from_file_location("prg_dva_001", MODULE_PATH)
 crm = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -1253,6 +1254,66 @@ class CleanRoomMutatorTests(unittest.TestCase):
             self.assertEqual(loaded, state)
             crm.write_archive(loaded, second, root_name=root_name)
             self.assertEqual(first.read_bytes(), second.read_bytes())
+
+
+    def test_declared_archive_root_rename(self):
+        with tempfile.TemporaryDirectory() as raw:
+            td = Path(raw)
+            baseline = self.make_baseline(td)
+            instruction = {
+                "format": crm.FORMAT,
+                "baseline_sha256": crm.sha256_file(baseline),
+                "root_name": "system_v2",
+                "operations": [{
+                    "op": "replace",
+                    "path": "A.txt",
+                    "expected_sha256": file_hash(b"alpha\n"),
+                    "content_utf8": "ALPHA\n",
+                }],
+            }
+            normalized = crm.validate_instruction(instruction)
+            plan = crm.build_plan(baseline, normalized)
+            self.assertEqual(plan["candidate_root_name"], "system_v2")
+            candidate_state = crm.apply_operations(crm.load_package_snapshot(baseline).state, plan["operations"])
+            candidate = td / "candidate.tar.gz"
+            crm.write_archive(candidate_state, candidate, root_name=plan["candidate_root_name"])
+            snapshot = crm.load_package_snapshot(candidate)
+            self.assertEqual(snapshot.root_name, "system_v2")
+            self.assertEqual(crm.tree_root(snapshot.state), crm.tree_root(candidate_state))
+
+    def test_root_name_rejects_nested_path(self):
+        instruction = {
+            "format": crm.FORMAT,
+            "baseline_sha256": "0" * 64,
+            "root_name": "nested/root",
+            "operations": [{"op": "create", "path": "A.txt", "content_utf8": "x"}],
+        }
+        with self.assertRaises(crm.CleanRoomError):
+            crm.validate_instruction(instruction)
+
+class ActiveEntrypointCoherenceTests(unittest.TestCase):
+    def test_active_standard_entrypoint_resolves_exactly_once(self) -> None:
+        package_root = Path(__file__).resolve().parents[1]
+        standard_path = package_root / "std" / "STD-DVA-001_v0.2.10.txt"
+        standard_text = standard_path.read_text(encoding="utf-8")
+        match = re.search(r'CANONICAL_OPERATOR_ENTRYPOINT_PATTERN: "([^"]+)"', standard_text)
+        self.assertIsNotNone(match)
+        pattern = re.compile(match.group(1).replace("\\\\", "\\"))
+        paths = [
+            path.relative_to(package_root).as_posix()
+            for path in package_root.rglob("*")
+            if path.is_file()
+        ]
+        matches = sorted(path for path in paths if pattern.fullmatch(path))
+        self.assertEqual(matches, ["prg/PRG-DVA-001_v0.2.10.py"])
+
+    def test_runtime_binding_matches_active_files(self) -> None:
+        module = crm
+        self.assertEqual(module.VERSION, "0.2.10")
+        self.assertEqual(module.PRG_SOURCE_BINDING["version"], "0.2.10")
+        self.assertEqual(module.PRG_SOURCE_BINDING["standard_file"], "std/STD-DVA-001_v0.2.10.txt")
+        self.assertEqual(module.PRG_SOURCE_BINDING["spl_file"], "spl/SPL-DVA-001_v0.2.10.txt")
+        self.assertEqual(module.PRG_SOURCE_BINDING["operator_entrypoint"], "prg/PRG-DVA-001_v0.2.10.py")
 
 
 if __name__ == "__main__":

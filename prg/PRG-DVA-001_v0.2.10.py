@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-STD-DVA-001 v0.2.6
+STD-DVA-001 v0.2.10
 
 Purpose:
     Preserve every undeclared supported entry state exactly and apply only
@@ -30,18 +30,18 @@ import tempfile
 from typing import Any, Dict, Iterable, List, Tuple
 
 
-VERSION = "0.2.6"
+VERSION = "0.2.10"
 FORMAT = "cleanroom-mutator-instruction/v1"
 PLAN_FORMAT = "cleanroom-mutator-plan/v1"
 AUDIT_FORMAT = "cleanroom-mutator-audit/v1"
 
 PRG_SOURCE_BINDING = {
     "program_id": "PRG-DVA-001",
-    "version": "0.2.6",
+    "version": "0.2.10",
     "standard_id": "STD-DVA-001",
-    "standard_file": "std/STD-DVA-001_v0.2.6.txt",
-    "spl_file": "spl/SPL-DVA-001_v0.2.6.txt",
-    "operator_entrypoint": "prg/PRG-DVA-001_v0.2.6.py",
+    "standard_file": "std/STD-DVA-001_v0.2.10.txt",
+    "spl_file": "spl/SPL-DVA-001_v0.2.10.txt",
+    "operator_entrypoint": "prg/PRG-DVA-001_v0.2.10.py",
     "command_surfaces": [
         "inspect", "plan", "apply", "verify", "rewind", "version", "help"
     ],
@@ -57,6 +57,7 @@ INSTRUCTION_REQUIRED_FIELDS = frozenset({
     "baseline_sha256",
     "operations",
 })
+INSTRUCTION_OPTIONAL_FIELDS = frozenset({"root_name"})
 CONTENT_FIELDS = frozenset({
     "content_utf8",
     "content_base64",
@@ -458,7 +459,7 @@ def load_archive_bytes(data: bytes, *, source: str = "<memory>") -> Dict[str, Di
                     state[name] = _entry_record(kind="file", data=fh.read(), **common)
                 else:
                     raise CleanRoomError(
-                        f"unsupported archive entry type for STD-DVA-001 v0.2.6: {name}"
+                        f"unsupported archive entry type for STD-DVA-001 v0.2.10: {name}"
                     )
 
             roots = sorted({name.split("/", 1)[0] for name in state})
@@ -615,13 +616,20 @@ def validate_instruction(instruction: Dict[str, Any]) -> Dict[str, Any]:
         instruction,
         scope="instruction",
         required=INSTRUCTION_REQUIRED_FIELDS,
-        allowed=INSTRUCTION_REQUIRED_FIELDS,
+        allowed=INSTRUCTION_REQUIRED_FIELDS | INSTRUCTION_OPTIONAL_FIELDS,
     )
     if instruction.get("format") != FORMAT:
         raise CleanRoomError(f"instruction format must be {FORMAT}")
     baseline_sha256 = _normalize_sha256(
         instruction.get("baseline_sha256"), field="baseline_sha256"
     )
+    root_name = instruction.get("root_name")
+    if root_name is not None:
+        if not isinstance(root_name, str):
+            raise CleanRoomError("root_name must be a string when present")
+        root_name = safe_relpath(root_name)
+        if "/" in root_name:
+            raise CleanRoomError("root_name must be one top-level path component")
     operations = instruction.get("operations")
     if not isinstance(operations, list) or not operations:
         raise CleanRoomError("operations must be a non-empty array")
@@ -689,11 +697,14 @@ def validate_instruction(instruction: Dict[str, Any]) -> Dict[str, Any]:
 
         normalized_ops.append(item)
 
-    return {
+    normalized = {
         "format": FORMAT,
         "baseline_sha256": baseline_sha256,
         "operations": normalized_ops,
     }
+    if root_name is not None:
+        normalized["root_name"] = root_name
+    return normalized
 
 
 def instruction_id(instruction: Dict[str, Any]) -> str:
@@ -764,6 +775,8 @@ def build_plan_from_snapshot(
         "format": PLAN_FORMAT,
         "program_version": VERSION,
         "baseline_sha256": baseline.sha256,
+        "baseline_root_name": baseline.root_name,
+        "candidate_root_name": instruction.get("root_name", baseline.root_name),
         "baseline_tree_root": tree_root(baseline.state),
         "instruction_sha256": instruction_id(instruction),
         "declared_paths": sorted(declared_paths),
@@ -1111,6 +1124,9 @@ def candidate_audit(
         "baseline_sha256": baseline.sha256,
         "instruction_baseline_sha256": instruction["baseline_sha256"],
         "baseline_snapshot_binding": "PASS" if binding_pass else "FAIL",
+        "baseline_root_name": baseline.root_name,
+        "candidate_root_name": candidate.root_name,
+        "root_name_change_declared": instruction.get("root_name") is not None,
         "baseline_tree_root": tree_root(baseline.state),
         "instruction_sha256": instruction_id(instruction),
         "plan_sha256": plan["plan_sha256"],
@@ -1184,10 +1200,10 @@ def cmd_apply(args: argparse.Namespace) -> int:
     candidate_temp = _temporary_sibling(output, suffix=".candidate.tmp")
     audit_temp = _temporary_sibling(audit_path, suffix=".audit.tmp")
     try:
-        write_archive(candidate_state, candidate_temp, root_name=baseline.root_name)
+        write_archive(candidate_state, candidate_temp, root_name=plan["candidate_root_name"])
         candidate = load_package_snapshot(candidate_temp)
-        if candidate.root_name != baseline.root_name:
-            raise CleanRoomError("candidate root changed during serialization")
+        if candidate.root_name != plan["candidate_root_name"]:
+            raise CleanRoomError("candidate root does not match declared root_name")
         if tree_root(candidate.state) != tree_root(candidate_state):
             raise CleanRoomError("candidate changed during serialization")
 
@@ -1234,8 +1250,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     baseline = load_package_snapshot(baseline_path)
     plan = build_plan_from_snapshot(baseline, instruction)
     candidate = load_package_snapshot(candidate_path)
-    if baseline.root_name != candidate.root_name:
-        raise CleanRoomError("candidate root differs from baseline root")
+    if candidate.root_name != plan["candidate_root_name"]:
+        raise CleanRoomError("candidate root does not match declared root_name")
 
     expected_state = apply_operations(baseline.state, plan["operations"])
     if tree_root(expected_state) != tree_root(candidate.state):
@@ -1251,6 +1267,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
         "result": "PASS",
         "baseline_sha256": baseline.sha256,
         "candidate_sha256": candidate.sha256,
+        "baseline_root_name": baseline.root_name,
+        "candidate_root_name": candidate.root_name,
         "declared_paths": plan["declared_paths"],
         "actual_changed_paths": changed,
         "unauthorized_changed_paths": unauthorized,

@@ -9,5 +9,6 @@
       "op": "replace",
       "path": "README.txt"
     }
-  ]
+  ],
+  "root_name": "package_v2"
 }

@@ -2,16 +2,16 @@
 NAME: "DETERMINISTIC_VERIFIED_APPLICATION_STANDARD"
 CATEGORY: "STSF_PROGRAM_PACKAGE_STANDARD"
 IDENTIFIER: "STD-DVA-001"
-VERSION: "0.2.6"
+VERSION: "0.2.10"
 STATUS: "REVIEW"
 AUTHOR: "Robert Michael Holliday"
 AUTHORITATIVE_BODY: "STSF_GOVERNANCE_AUTHORITY"
-LAST_UPDATED: "2026-06-26"
+LAST_UPDATED: "2026-07-22"
 COMPATIBILITY: "STSF==7.8.23"
 PROFILE_CLAIMS: ["STSF_BASE_PROFILE","STSF_SELF_CONTAINED_SOURCE_SYSTEM_PROFILE"]
 CANONICAL_SOURCE_SYSTEM_ROOT_MODEL: "MINIMAL_OPERATOR_ROOT"
 CANONICAL_AUTHORITY_CONTAINERS: ["std","prg","spl"]
-CANONICAL_OPERATOR_ENTRYPOINT_PATTERN: "^prg/PRG-DVA-001_v0\\.2\\.6\\.py$"
+CANONICAL_OPERATOR_ENTRYPOINT_PATTERN: "^prg/PRG-DVA-001_v0\\.2\\.10\\.py$"
 CANONICAL_HUMAN_ACCESS_DOCUMENT: "read me.txt"
 # 2. PURPOSE_SCOPE
 STD-DVA-001 defines the Deterministic Verified Application program package. Its purpose is to preserve the complete supported existing package state, apply only explicitly declared changes, and prove that no undeclared modeled state changed.
@@ -55,7 +55,7 @@ BASELINE_READ -> SNAPSHOT_BINDING -> INSTRUCTION_PARSE -> CLOSED_SCHEMA_VALIDATI
 
 Inspect stops after snapshot and inventory production. Plan stops after canonical plan production. Verify performs the transformation and preservation checks against an existing candidate without publishing output. Rewind copies the bound baseline bytes exactly.
 
-The package authority containers are STD, PRG, and SPL. SPL-DVA-001 is retained as DRAFT future content and does not provide an active runtime binding. Other package surfaces do not create authority.
+The package authority containers are STD, PRG, and SPL. SPL-DVA-001_v0.2.10 is the active Python language binding for the DVA runtime. Other package surfaces do not create authority.
 # 5. ARCHITECTURE
 The closed top-level package set is:
 
@@ -69,7 +69,7 @@ fixtures
 manifest
 tests
 
-std contains this governing DVA standard. prg contains exactly one executable runtime. spl contains the DRAFT SPL placeholder. tests contains the inherited regression suite. fixtures contains the valid instruction example. manifest contains MANIFEST.sha256. LICENSE contains the unmodified Apache License, Version 2.0 text. NOTICE contains the approved project prayer, copyright attribution, and license notice. LICENSE and NOTICE do not create package authority.
+std contains this governing DVA standard. prg contains exactly one executable runtime. spl contains the active SPL-DVA-001_v0.2.10 Python binding. tests contains the inherited regression suite. fixtures contains the valid instruction example. manifest contains MANIFEST.sha256. LICENSE contains the unmodified Apache License, Version 2.0 text. NOTICE contains the approved project prayer, copyright attribution, and license notice. LICENSE and NOTICE do not create package authority.
 
 LICENSE SHALL contain the unmodified Apache License, Version 2.0 text.
 
@@ -85,7 +85,9 @@ Copyright 2026 Robert Michael Holliday
 
 Licensed under the Apache License, Version 2.0.
 
-The canonical runtime is prg/PRG-DVA-001_v0.2.6.py. No second executable wrapper is authorized.
+The canonical runtime is prg/PRG-DVA-001_v0.2.10.py. No second executable wrapper is authorized.
+
+The active canonical entrypoint pattern SHALL resolve to exactly one manifest-listed regular file. That file SHALL equal the runtime path declared by PRG_SOURCE_BINDING and SHALL report the same STD, PRG, and SPL versions. Zero matches, multiple matches, stale-version matches, unmanifested matches, or identity mismatches SHALL block release.
 # 6. INTERFACE_DEFINITIONS
 The program exposes inspect, plan, apply, verify, rewind, version, and help surfaces.
 
@@ -647,7 +649,7 @@ For any archive T containing directory d with size(d) > 0:
 
 This prevents a many-to-one projection in which nonzero directory bytes disappear while preservation is reported as PASS.
 # 9. DEPENDENCIES
-The package depends on STD-STSF-004_v7.8.23 as an external governing specification, the local STD-DVA-001 authority, CPython 3.10 or newer, and operating-system filesystem services exposed through the Python standard library. SPL-DVA-001 is retained as DRAFT future content and is not an active runtime dependency.
+The package depends on STD-STSF-004_v7.8.23 as an external governing specification, the local STD-DVA-001 authority, CPython 3.10 or newer, and operating-system filesystem services exposed through the Python standard library. SPL-DVA-001_v0.2.10 is the active local runtime binding and remains independent from every other system.
 
 No third-party Python package, network service, remote repository, credential source, or background process is required.
 # 10. CONSTRAINTS
@@ -691,7 +693,7 @@ SPL-DVA SHALL bind the exact parent STD, parent PRG, runtime, and entrypoint.
 The three cleanroom-mutator protocol identifiers SHALL remain unchanged.
 Exactly one canonical operator runtime SHALL exist under prg.
 The runtime SHALL compile under Python 3.10 or newer.
-All forty-five inherited regression tests SHALL pass without removal, skip, or weakening.
+All forty-seven inherited regression tests SHALL pass without removal, skip, or weakening.
 A controlled mutation SHALL change only its declared modeled path.
 Candidate and audit content SHALL be deterministic for identical inputs.
 Verify SHALL reject every undeclared modeled difference.
@@ -710,6 +712,10 @@ The final package SHALL contain no __pycache__, pyc, temporary, staging, or unde
 # 14. IMPLEMENTATION_GUIDELINES
 Keep function names and boundaries direct. Treat PRG_SOURCE_BINDING as inert identity metadata. Preserve existing error behavior unless a separately approved functional repair changes it. After tests and validation, rebuild the manifest and archive deterministically.
 # 15. VERSIONING_POLICY
+Version 0.2.10 activates the complete SPL Python binding, corrects the canonical operator entrypoint from v0.2.6 to v0.2.10, corrects the stale runtime error identity, and preserves all mutation semantics.
+
+Version 0.2.7 adds an optional validated root_name instruction field. The field changes only the single archive root component; it does not alter package-relative state, declared path preservation, or file-operation semantics.
+
 v0.2.0 is the fixed structural conversion version.
 
 v0.2.1 removes the package manifest from the intrinsic materialized-surface declaration, reclassifies its artifact record as an optional report, and aligns the current authority and runtime version references. No DVA mutation behavior changes.
@@ -722,4 +728,4 @@ v0.2.4 applies the approved C01-C14 package cleanup, reduces PRG_SOURCE_BINDING 
 
 v0.2.5 expands read me.txt with getting-started instructions, command explanations, one complete workflow, and create, replace, delete, and rename examples. No DVA mutation behavior changes.
 
-v0.2.6 adds Apache License 2.0 licensing, a root NOTICE containing the approved project prayer and attribution, and corresponding package declarations. No DVA mutation behavior changes.
+v0.2.7 adds Apache License 2.0 licensing, a root NOTICE containing the approved project prayer and attribution, and corresponding package declarations. No DVA mutation behavior changes.
